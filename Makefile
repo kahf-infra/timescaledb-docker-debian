@@ -2,17 +2,11 @@ NAME=timescaledb
 # Default is to timescaledev to avoid unexpected push to the main repo
 # Set ORG to timescale in the caller
 ORG=timescaledev
-PG_VER=pg17
+PG_VER=pg16
 PG_VER_NUMBER=$(shell echo $(PG_VER) | cut -c3-)
 PG_MAJOR_VERSION=$(shell echo $(PG_VER_NUMBER) | cut -d. -f1)
-ifeq ($(shell test $(PG_MAJOR_VERSION) -ge 16; echo $$?),0)
-  ALPINE_VERSION=3.21
-  CLANG_VERSION=19
-else
-  ALPINE_VERSION=3.20
-  CLANG_VERSION=15
-endif
-TS_VERSION=main
+CLANG_VERSION=14  # Debian 12 default
+TS_VERSION=2.13.0
 PREV_TS_VERSION=$(shell wget --quiet -O - https://raw.githubusercontent.com/timescale/timescaledb/${TS_VERSION}/version.config | grep update_from_version | sed -e 's!update_from_version = !!')
 PREV_TS_IMAGE="timescale/timescaledb:$(PREV_TS_VERSION)-pg$(PG_VER_NUMBER)$(PREV_EXTRA)"
 PREV_IMAGE=$(shell if docker pull $(PREV_TS_IMAGE) >/dev/null; then echo "$(PREV_TS_IMAGE)"; else echo "postgres:$(PG_VER_NUMBER)-bookworm"; fi )
@@ -27,13 +21,12 @@ TAG_LATEST=$(ORG)/$(NAME):latest-$(PG_VER)
 TAG=-t $(TAG_VERSION) $(if $(BETA),,-t $(TAG_LATEST))
 TAG_OSS=-t $(TAG_VERSION)-oss $(if $(BETA),,-t $(TAG_LATEST)-oss)
 
-PGVECTOR_VERSION=v0.7.2
+PGVECTOR_VERSION=v0.7.0
 
 COMMON_BUILD_ARGS= --build-arg TS_VERSION=$(TS_VERSION) \
 		--build-arg PREV_IMAGE=$(PREV_IMAGE) \
 		--build-arg PG_VERSION=$(PG_VER_NUMBER) \
 		--build-arg PG_MAJOR_VERSION=$(PG_MAJOR_VERSION) \
-		--build-arg ALPINE_VERSION=$(ALPINE_VERSION) \
 		--build-arg CLANG_VERSION=$(CLANG_VERSION) \
 		--build-arg PGVECTOR_VERSION=$(PGVECTOR_VERSION)
 
@@ -43,7 +36,6 @@ default: image
 	test -n "$(TS_VERSION)"  # TS_VERSION
 	test -n "$(PREV_TS_VERSION)"  # PREV_TS_VERSION
 	test -n "$(PREV_IMAGE)"  # PREV_IMAGE
-	test -n "$(ALPINE_VERSION)"  # ALPINE_VERSION
 	docker buildx create --platform $(PLATFORM) --name multibuild --use
 	docker buildx inspect multibuild --bootstrap
 	docker buildx build --platform $(PLATFORM) \
@@ -57,7 +49,6 @@ default: image
 	test -n "$(TS_VERSION)"  # TS_VERSION
 	test -n "$(PREV_TS_VERSION)"  # PREV_TS_VERSION
 	test -n "$(PREV_IMAGE)"  # PREV_IMAGE
-	test -n "$(ALPINE_VERSION)"  # ALPINE_VERSION
 	docker buildx create --platform $(PLATFORM) --name multibuild --use
 	docker buildx inspect multibuild --bootstrap
 	docker buildx build --platform $(PLATFORM) \
